@@ -68,3 +68,46 @@ that's a real operational scenario worth capturing, not a failure to hide.
   higher-tier regions.
 - Failover drill timings will reflect real intra-Africa network conditions,
   not a best-case US backbone.
+
+## Amendment — 2026-07-30
+
+During deployment, `terraform apply` for the secondary environment failed:
+
+```
+LocationNotAvailableForResourceGroup: The provided location
+'southafricawest' is not available for resource group.
+```
+
+This subscription is governed by an organization-level Azure Policy
+restricting deployments to an explicit allow-list of regions.
+`southafricawest` is not on that list; `southafricanorth` is — which is
+why the primary region deployed without issue and the mismatch only
+surfaced when applying secondary.
+
+**Decision: secondary region changed to West Europe (`westeurope`).**
+
+This was not the original plan and is recorded here rather than quietly
+edited in, because encountering and adapting to a real subscription-level
+constraint is itself relevant evidence — this is what "the design met
+reality" actually looks like in a governed environment, not a hypothetical
+to reason about in the abstract.
+
+**Reasoning for West Europe specifically, from the allowed list:**
+- Full, mature service parity with South Africa North for everything this
+  project needs (Postgres Flexible Server with HA and geo-replication
+  features, App Service, Front Door)
+- UAE North was considered for closer geographic proximity, but was not
+  chosen — West Europe's service maturity and documentation depth reduce
+  the risk of hitting a second region-specific surprise mid-build, which
+  matters more here than shaving some milliseconds off replication lag
+- No longer an official Azure-paired-region relationship with South Africa
+  North (that benefit, described in the original decision above, is lost)
+  — accepted as a reasonable tradeoff against the alternative of fighting
+  the subscription's allow-list policy to get South Africa West approved
+
+**Consequence:** replication lag and failover timing numbers from the
+eventual failure drill will reflect South Africa North ↔ West Europe
+network conditions, not the original South Africa North ↔ West pairing.
+This is noted here so the eventual `FAILOVER-DRILL.md` numbers aren't
+read against the wrong baseline assumption.
+

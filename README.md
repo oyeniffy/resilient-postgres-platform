@@ -19,10 +19,15 @@ GitHub Issues / Project board for current build state.
 
 | | Primary | Secondary |
 |---|---|---|
-| Region | South Africa North | South Africa West |
+| Region | South Africa North | West Europe (see note) |
 | Role | Active — serves all traffic | Passive — warm standby, promoted on failover |
 | Database | Azure Database for PostgreSQL Flexible Server | Geo-replica (read-only until promotion) |
-| Compute | Azure App Service (Linux) — see ADR-0003 | Mirrored |
+| Compute | TBD (App Service / Container Apps — decided in ADR-0002) | Mirrored |
+
+> **Note:** Secondary was originally scoped as South Africa West (Azure's
+> official pair for South Africa North). Deployment hit a subscription-level
+> allowed-locations policy that excludes South Africa West, so secondary
+> moved to West Europe. Full reasoning in the ADR-0001 amendment.
 
 Full architecture diagram and reasoning: see `docs/adr/0001-region-and-workload-selection.md`.
 
@@ -49,7 +54,7 @@ just a working deployment.
 │   └── compute/
 ├── environments/
 │   ├── primary/              # Root config: South Africa North
-│   └── secondary/            # Root config: South Africa West
+│   └── secondary/            # Root config: West Europe (see note above)
 ├── scripts/                  # Bootstrap and operational scripts (state backend, failover drill, teardown)
 └── .github/workflows/        # CI/CD — plan on PR, manual-approval apply on merge
 ```
@@ -57,7 +62,7 @@ just a working deployment.
 ## Infrastructure as Code
 
 Terraform, with remote state in Azure Storage (locked via blob lease). See
-`docs/adr/0002-terraform-and-state-backend.md` for why Terraform over Bicep for
+`docs/adr/0002-terraform-state-backend.md` for why Terraform over Bicep for
 this project, and why Azure Storage over Terraform Cloud for state.
 
 State backend is bootstrapped once, manually, via `scripts/bootstrap-backend.sh`
