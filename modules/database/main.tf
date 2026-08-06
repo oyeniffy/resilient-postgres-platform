@@ -41,10 +41,22 @@ resource "azurerm_postgresql_flexible_server" "this" {
 
   sku_name   = var.sku_name
   storage_mb = var.storage_mb
-  zone       = var.zone
+
+  # A replica's zone is determined by the platform automatically — forcing
+  # a specific zone on Replica creation isn't a supported input and may
+  # itself be a source of provisioning failures. Only set zone explicitly
+  # for a standalone/primary server.
+  zone = var.create_mode == "Default" ? var.zone : null
 
   create_mode      = var.create_mode
   source_server_id = var.create_mode == "Replica" ? var.source_server_id : null
+
+  # Discovered via testing (3 identical InternalServerError failures on
+  # replica creation) to be a real prerequisite for cross-region read
+  # replicas, despite not being stated as a hard requirement in official
+  # docs. Only settable at creation time — cannot be changed later. Only
+  # applies to the primary; a replica cannot have its own geo-backup config.
+  geo_redundant_backup_enabled = var.create_mode == "Default" ? var.geo_redundant_backup_enabled : false
 
   # High availability only applies to a standalone/primary server — a
   # replica cannot have its own HA standby.

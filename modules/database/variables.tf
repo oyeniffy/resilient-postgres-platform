@@ -49,6 +49,12 @@ variable "high_availability_enabled" {
   default     = false
 }
 
+variable "geo_redundant_backup_enabled" {
+  description = "Enable geo-redundant backup storage. Discovered via testing to be a real prerequisite for cross-region read replica creation, despite not being documented as a hard requirement — Azure returns a generic InternalServerError on replica creation if the source lacks this. Can only be set at server creation time; cannot be changed afterward. Only meaningful when create_mode = Default."
+  type        = bool
+  default     = false
+}
+
 variable "standby_availability_zone" {
   type    = string
   default = "2"

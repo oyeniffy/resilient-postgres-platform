@@ -58,8 +58,9 @@ module "database" {
   delegated_subnet_id   = module.networking.database_subnet_id
   vnet_id               = module.networking.vnet_id
 
-  create_mode                = "Default"
-  high_availability_enabled  = true
+  create_mode                   = "Default"
+  high_availability_enabled     = true
+  geo_redundant_backup_enabled  = true
 
   tenant_id                   = data.azurerm_client_config.current.tenant_id
   entra_admin_object_id       = var.entra_admin_object_id

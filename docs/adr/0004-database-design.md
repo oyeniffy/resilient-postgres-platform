@@ -98,3 +98,48 @@ here rather than discovered as a confusing error.
 - No admin password exists anywhere in this project — access is entirely
   via Entra ID identity, which also means losing access to the Azure
   account in use would require an Entra-level fix, not a password reset.
+
+## Amendment — 2026-08-06: geo-redundant backup is a real prerequisite for cross-region replicas
+
+Creating the secondary replica failed three times in a row with an
+identical, generic error:
+
+```
+Status: "InternalServerError"
+Message: "An unexpected error occured while processing the request."
+```
+
+Each failure occurred at the same point (~3 minutes into server creation),
+with `source_server_id` correctly pointing at the real primary server —
+ruling out the cross-state reference (ADR-0004's main design point) as the
+cause. Two other hypotheses were tested and ruled out first: an explicit
+`zone` argument on the replica (removed — replicas don't accept a caller-
+specified zone) and an unsupported region pairing (ruled out — Microsoft
+Learn confirms replicas are supported in any region combination, not just
+paired regions).
+
+**Root cause, found via a Microsoft-authored reference architecture repo
+rather than the prescriptive API docs:** cross-region read replicas
+require the *primary* server to have been created with
+`geo_redundant_backup_enabled = true`. This isn't stated as a hard
+requirement in Azure's plain-language documentation — it was inferred from
+observing that every working reference example paired zone-redundant HA
+and geo-redundant backup together on the primary before provisioning
+replicas, combined with the primary in this project having been created
+with the default `geo_redundant_backup_enabled = false`.
+
+**Consequence:** `geo_redundant_backup_enabled` can only be set at server
+creation time (Azure does not allow changing it afterward), so fixing this
+requires destroying and recreating the primary server — acceptable here
+since no real application data existed on it yet at the time this was
+discovered.
+
+**Why this is worth recording rather than quietly fixing:** this is a
+genuine example of an undocumented dependency between two features
+(HA and geo-replication) that Azure's API surfaces as an unhelpful generic
+500 error instead of a clear validation message. Diagnosing it required
+ruling out simpler explanations first (config error, region support,
+platform incident) via evidence — not guessing — before reaching the
+actual cause via a working example rather than the missing documentation.
+This is the kind of debugging trail a portfolio reviewer should be able to
+follow, not something to sand smooth after the fact.
