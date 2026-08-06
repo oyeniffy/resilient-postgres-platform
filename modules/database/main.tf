@@ -33,6 +33,12 @@ resource "azurerm_postgresql_flexible_server" "this" {
   delegated_subnet_id = var.delegated_subnet_id
   private_dns_zone_id = azurerm_private_dns_zone.postgres.id
 
+  # Required when using VNet integration (delegated subnet + private DNS
+  # zone) — Azure rejects the combination if public access isn't explicitly
+  # disabled. The whole point of VNet integration is that the database is
+  # never reachable from the public internet.
+  public_network_access_enabled = false
+
   sku_name   = var.sku_name
   storage_mb = var.storage_mb
   zone       = var.zone
