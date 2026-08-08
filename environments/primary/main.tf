@@ -32,13 +32,6 @@ module "networking" {
 }
 
 # ---- Entra ID admin identity ----
-# Object ID and UPN of the human user this project's database admin
-# access is assigned to. These are NOT auto-discoverable by Terraform
-# (there's no API for "who is the human currently running az login") —
-# fetch them once via:
-#   az ad signed-in-user show --query "{objectId:id, upn:userPrincipalName}" -o table
-# and pass them at apply time (see README/commands for the exact flags),
-# rather than hardcoding here.
 variable "entra_admin_object_id" {
   type        = string
   description = "Your Entra ID object ID — from 'az ad signed-in-user show'"
@@ -69,10 +62,47 @@ module "database" {
   tags = local.tags
 }
 
+# ---- VNet peering to secondary ----
+# Both database servers use public_network_access_enabled = false, meaning
+# they are ONLY reachable over private networking. Cross-region read
+# replica creation requires a network path between the two VNets — Azure
+# does not create this automatically. Discovered via a real failure:
+# "ReadReplicaToSourceServerNetworkBlocked" after 5 identical-looking but
+# actually-network-caused replica creation failures. See ADR-0004 amendment.
+#
+# Peering is bidirectional: this resource is the primary -> secondary side.
+# The matching secondary -> primary resource lives in environments/secondary.
+data "terraform_remote_state" "secondary" {
+  backend = "azurerm"
+  config = {
+    resource_group_name  = "rg-tfstate-haplatform"
+    storage_account_name = "sthaplatformtfstate6430"
+    container_name        = "tfstate"
+    key                   = "secondary.tfstate"
+  }
+}
+
+resource "azurerm_virtual_network_peering" "to_secondary" {
+  name                      = "peer-primary-to-secondary"
+  resource_group_name       = azurerm_resource_group.this.name
+  virtual_network_name      = module.networking.vnet_name
+  remote_virtual_network_id = data.terraform_remote_state.secondary.outputs.vnet_id
+
+  allow_virtual_network_access = true
+  allow_forwarded_traffic       = false
+  allow_gateway_transit          = false
+  use_remote_gateways             = false
+}
+
 output "postgres_server_id" {
   value = module.database.server_id
 }
 
 output "postgres_server_fqdn" {
   value = module.database.server_fqdn
+}
+
+output "vnet_id" {
+  description = "Primary VNet ID, consumed by secondary environment to establish the reverse VNet peering"
+  value       = module.networking.vnet_id
 }

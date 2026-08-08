@@ -19,7 +19,7 @@ GitHub Issues / Project board for current build state.
 
 | | Primary | Secondary |
 |---|---|---|
-| Region | South Africa North | West Europe (see note) |
+| Region | South Africa North | North Europe (see note) |
 | Role | Active — serves all traffic | Passive — warm standby, promoted on failover |
 | Database | Azure Database for PostgreSQL Flexible Server | Geo-replica (read-only until promotion) |
 | Compute | TBD (App Service / Container Apps — decided in ADR-0002) | Mirrored |
@@ -27,7 +27,9 @@ GitHub Issues / Project board for current build state.
 > **Note:** Secondary was originally scoped as South Africa West (Azure's
 > official pair for South Africa North). Deployment hit a subscription-level
 > allowed-locations policy that excludes South Africa West, so secondary
-> moved to West Europe. Full reasoning in the ADR-0001 amendment.
+> moved to West Europe, which then failed cross-region replica creation
+> consistently — moved again to North Europe. Full reasoning in the
+> ADR-0001 amendments.
 
 Full architecture diagram and reasoning: see `docs/adr/0001-region-and-workload-selection.md`.
 
@@ -54,7 +56,7 @@ just a working deployment.
 │   └── compute/
 ├── environments/
 │   ├── primary/              # Root config: South Africa North
-│   └── secondary/            # Root config: West Europe (see note above)
+│   └── secondary/            # Root config: North Europe (see note above)
 ├── scripts/                  # Bootstrap and operational scripts (state backend, failover drill, teardown)
 └── .github/workflows/        # CI/CD — plan on PR, manual-approval apply on merge
 ```

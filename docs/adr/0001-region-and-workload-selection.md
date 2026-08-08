@@ -111,3 +111,38 @@ network conditions, not the original South Africa North ↔ West pairing.
 This is noted here so the eventual `FAILOVER-DRILL.md` numbers aren't
 read against the wrong baseline assumption.
 
+## Amendment 2 — 2026-08-06: West Europe cross-region replica creation fails consistently; pivoted to North Europe
+
+Cross-region replica creation to West Europe failed **four times**,
+identically, with a generic `InternalServerError` from Azure's API — even
+after ruling out three other hypotheses in sequence (an explicit `zone`
+argument on the replica; unsupported region pairing, ruled out via
+Microsoft Learn docs confirming any-region replication is supported; and
+missing `geo_redundant_backup_enabled` on the primary, which was a real
+fix worth keeping but did not resolve this specific failure).
+
+**Diagnostic step that isolated the cause:** created a same-region replica
+directly via Azure CLI (bypassing Terraform entirely) from the same
+primary server. It succeeded immediately (`"state": "Ready"`, under a
+minute). This confirms the primary server, its configuration, and the
+Terraform provider are not the problem — the failure is specific to
+**cross-region replication targeting West Europe**, from this
+subscription, at this time.
+
+**Decision:** secondary region changed again, from West Europe to
+**North Europe**. Reasoning: North Europe is a similarly mature,
+high-traffic region with full Postgres Flexible Server support, but is
+infrastructurally distinct enough from West Europe to serve as a genuine
+test of whether the issue is West-Europe-specific or a broader
+cross-region pattern for this subscription.
+
+**Why this is recorded rather than silently swapped again:** four
+identical failures against one target region, followed by an instant
+same-region success, is a meaningfully different situation from the
+earlier South-Africa-West policy block (which had a clear, immediate,
+correctly-worded error). This failure mode — consistent, generic,
+platform-side — was not fully resolvable through client-side diagnosis
+alone. The Azure Activity Log was checked and contained no further detail
+beyond the top-level message; a Basic support ticket was considered as
+the next step if North Europe also fails.
+

@@ -1,13 +1,15 @@
-# West Europe (secondary/passive) — root configuration
+# North Europe (secondary/passive) — root configuration
 #
-# Originally scoped as South Africa West; changed after deployment hit a
-# subscription-level allowed-locations policy. See ADR-0001 amendment.
+# Originally South Africa West (subscription policy block), then West
+# Europe (cross-region replica creation failed 4x with generic Azure
+# platform errors, later diagnosed as a missing VNet peering issue — see
+# ADR-0001 and ADR-0004 amendments for full history).
 
 data "azurerm_client_config" "current" {}
 
 locals {
   environment = "secondary"
-  location    = "westeurope"
+  location    = "northeurope"
   tags = {
     Owner       = "nifemi"
     CostCenter  = "personal-portfolio"
@@ -34,10 +36,6 @@ module "networking" {
   tags                     = local.tags
 }
 
-# Reads primary's state as a data source ONLY — this environment cannot
-# modify primary's resources, just read its outputs (the server ID needed
-# to create the replica). See ADR-0004 for why this cross-state reference
-# is used instead of merging into a single shared state.
 data "terraform_remote_state" "primary" {
   backend = "azurerm"
   config = {
@@ -65,10 +63,31 @@ module "database" {
   tags = local.tags
 }
 
+# ---- VNet peering to primary (reverse side) ----
+# See environments/primary/main.tf for the full explanation. This is the
+# secondary -> primary half of the bidirectional peering. Both halves must
+# exist for traffic to flow in both directions.
+resource "azurerm_virtual_network_peering" "to_primary" {
+  name                      = "peer-secondary-to-primary"
+  resource_group_name       = azurerm_resource_group.this.name
+  virtual_network_name      = module.networking.vnet_name
+  remote_virtual_network_id = data.terraform_remote_state.primary.outputs.vnet_id
+
+  allow_virtual_network_access = true
+  allow_forwarded_traffic       = false
+  allow_gateway_transit          = false
+  use_remote_gateways             = false
+}
+
 output "postgres_replica_id" {
   value = module.database.server_id
 }
 
 output "postgres_replica_fqdn" {
   value = module.database.server_fqdn
+}
+
+output "vnet_id" {
+  description = "Secondary VNet ID, consumed by primary environment to establish VNet peering"
+  value       = module.networking.vnet_id
 }
