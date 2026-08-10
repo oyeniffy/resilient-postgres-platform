@@ -106,3 +106,31 @@ output "vnet_id" {
   description = "Primary VNet ID, consumed by secondary environment to establish the reverse VNet peering"
   value       = module.networking.vnet_id
 }
+
+# ---- Compute (App Service) ----
+module "compute" {
+  source = "../../modules/compute"
+
+  resource_group_name = azurerm_resource_group.this.name
+  location             = local.location
+  environment           = local.environment
+  compute_subnet_id     = module.networking.compute_subnet_id
+
+  app_settings = {
+    REGION_NAME      = local.environment
+    DB_HOST          = module.database.server_fqdn
+    DB_NAME          = "postgres"
+    WEBSITES_PORT    = "8080"
+  }
+
+  tags = local.tags
+}
+
+output "app_default_hostname" {
+  value = module.compute.default_hostname
+}
+
+output "app_identity_principal_id" {
+  description = "Grant this identity access inside Postgres manually via SQL — not automatable through Terraform"
+  value       = module.compute.identity_principal_id
+}

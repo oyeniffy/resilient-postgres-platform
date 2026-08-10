@@ -1,0 +1,12 @@
+{
+  "name": "resilient-postgres-platform-app",
+  "version": "0.1.0",
+  "description": "Minimal placeholder app for infrastructure validation. Real task/notes API logic comes after infra is proven end-to-end.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
