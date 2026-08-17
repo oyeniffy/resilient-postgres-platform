@@ -1,0 +1,87 @@
+name: Terraform Apply (main)
+
+# Runs when Terraform config changes are merged to main. Gated behind a
+# GitHub Environment protection rule requiring manual approval — this is
+# the actual change-control mechanism: a merge alone doesn't touch real
+# infrastructure, a human has to explicitly approve the apply afterward.
+#
+# Applies primary and secondary in sequence (not parallel) since secondary
+# depends on primary's state (source_server_id for the replica, vnet_id
+# for peering) — see ADR-0004 and ADR-0005 for why this ordering matters.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'environments/**'
+      - 'modules/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_USE_OIDC: true
+
+jobs:
+  apply-primary:
+    name: Apply — primary
+    runs-on: ubuntu-latest
+    environment: production   # <- this is what triggers the manual approval gate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.4"
+
+      - name: Terraform Init
+        working-directory: environments/primary
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: environments/primary
+        run: |
+          terraform apply -auto-approve \
+            -var="entra_admin_object_id=${{ secrets.ENTRA_ADMIN_OBJECT_ID }}" \
+            -var="entra_admin_principal_name=${{ secrets.ENTRA_ADMIN_PRINCIPAL_NAME }}"
+
+  apply-secondary:
+    name: Apply — secondary
+    runs-on: ubuntu-latest
+    needs: apply-primary   # secondary depends on primary's published state
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.4"
+
+      - name: Terraform Init
+        working-directory: environments/secondary
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: environments/secondary
+        run: terraform apply -auto-approve
+
+  apply-global:
+    name: Apply — global (Front Door)
+    runs-on: ubuntu-latest
+    needs: apply-secondary   # Front Door needs both App Service hostnames published
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.4"
+
+      - name: Terraform Init
+        working-directory: environments/global
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: environments/global
+        run: terraform apply -auto-approve

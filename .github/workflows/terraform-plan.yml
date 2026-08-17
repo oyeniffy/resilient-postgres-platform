@@ -1,0 +1,81 @@
+name: Terraform Plan (PR)
+
+# Runs on every pull request that touches Terraform config. Posts the
+# plan output as a PR comment so changes are reviewable before merge —
+# this is the actual point of a plan/apply pipeline: nobody applies
+# blind, and there's a paper trail of what was proposed vs what ran.
+#
+# Uses OIDC federated credentials — no long-lived Azure secrets are
+# stored in GitHub. See docs/CI-SETUP.md for the one-time federated
+# credential setup this depends on.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'environments/**'
+      - 'modules/**'
+
+permissions:
+  id-token: write      # required for OIDC
+  contents: read
+  pull-requests: write # required to post plan as a PR comment
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_USE_OIDC: true
+
+jobs:
+  plan:
+    name: Plan (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [primary, secondary, global]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.4"
+
+      - name: Terraform Init
+        working-directory: environments/${{ matrix.environment }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: environments/${{ matrix.environment }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: environments/${{ matrix.environment }}
+        id: plan
+        run: |
+          terraform plan -no-color -out=tfplan \
+            ${{ matrix.environment == 'primary' && format('-var="entra_admin_object_id={0}" -var="entra_admin_principal_name={1}"', secrets.ENTRA_ADMIN_OBJECT_ID, secrets.ENTRA_ADMIN_PRINCIPAL_NAME) || '' }} \
+            2>&1 | tee plan_output.txt
+        continue-on-error: true
+
+      - name: Post plan as PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('environments/${{ matrix.environment }}/plan_output.txt', 'utf8').slice(-60000);
+            const body = `#### Terraform Plan — \`${{ matrix.environment }}\`\n\`\`\`\n${plan}\n\`\`\``;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      - name: Fail job if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1

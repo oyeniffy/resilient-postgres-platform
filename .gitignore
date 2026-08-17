@@ -33,3 +33,4 @@ service-principal.json
 # Logs
 *.log
 budget-notifications.json
+app/*.zip
