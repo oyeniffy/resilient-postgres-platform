@@ -7,10 +7,7 @@ token, and no long-lived Azure credential is ever stored in GitHub
 Secrets — only non-secret identifiers (client ID, tenant ID,
 subscription ID).
 
-This is a one-time setup, done once per subscription. **Not yet run** —
-pending a new Azure subscription (previous one hit its spending limit
-and was disabled; see ADR history). Steps below are ready to execute the
-moment a working subscription is available.
+This is a one-time setup, done once per subscription.
 
 ## 1. Create an app registration
 

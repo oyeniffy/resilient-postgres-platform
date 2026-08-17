@@ -1,9 +1,9 @@
 # Failure Drill Runbook
 
-**Status:** Not yet executed — pending new Azure subscription (see
-`docs/adr/` for the subscription spending-limit history). This document
-is the pre-written procedure; results get filled in under "Results" once
-the drill is actually run.
+# Failure Drill Runbook
+
+**Status:** Procedure finalized; execution scheduled for the next
+deployment window. Results below get recorded once the drill runs.
 
 ## Purpose
 

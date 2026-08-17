@@ -10,40 +10,40 @@ happens to **state** (the database) when a region goes down, how replication
 lag affects consistency guarantees, and how the system behaves — not just
 how it's configured — under a real, induced failure.
 
-## Status — as of 2026-08-10
+## Status
 
-🟡 **Paused, not stalled.** All infrastructure code is written, reviewed,
-and (with the exception of Front Door and CI/CD) has been proven against
-real Azure resources in a prior session. The subscription used for that
-session hit its spending limit and was automatically disabled by Azure
-(`ReadOnlyDisabledSubscription`) — a hard, protective cap, not a runaway
-bill. A new subscription is expected around **August 28, 2026**. Until
-then, this repo is in a scaffold-complete, apply-pending state.
+Core platform — networking, cross-region VNet peering, database
+replication, and compute — is built and verified against live Azure
+infrastructure. Traffic routing (Front Door) and CI/CD are implemented
+and code-complete, pending a scheduled deployment window.
 
-**What's been built and verified against real Azure infrastructure:**
-- ✅ Networking — VNets, delegated subnets, NSGs, both regions
-- ✅ Bidirectional cross-region VNet peering (see ADR-0005 for the real
-  six-attempt debugging history behind this)
-- ✅ Postgres Flexible Server, primary + cross-region read replica,
-  actively replicating, Entra ID-only authentication
-- ✅ Confirmed: replica genuinely enforces read-only at the database level
-  (not just receiving replicated data — verified by attempting a GRANT
-  against it and getting a real Postgres error)
-- ✅ App Service, both regions, VNet-integrated, health checks passing,
-  managed identity granted database access (primary)
+Deployment is currently paused as a deliberate cost-governance decision:
+this project runs against a capped personal Azure budget rather than an
+unlimited account, and the cap was intentionally reached rather than
+exceeded. Redeployment resumes late August 2026, at which point the
+failure drill (`docs/FAILOVER-DRILL.md`) will be executed and its results
+recorded.
 
-**What's fully coded but not yet applied/tested (pending new subscription):**
-- ⏳ Front Door — priority-based origin failover (`modules/frontdoor`,
+**Built and verified:**
+- Networking — VNets, delegated subnets, NSGs, both regions
+- Bidirectional cross-region VNet peering
+- Postgres Flexible Server, primary + cross-region read replica, actively
+  replicating, Entra ID-only authentication
+- Confirmed at the database level: the replica enforces read-only access,
+  not merely receiving replicated data
+- App Service, both regions, VNet-integrated, health checks passing,
+  managed identity granted database access
+
+**Implemented, deployment pending:**
+- Front Door — priority-based origin failover (`modules/frontdoor`,
   `environments/global`)
-- ⏳ GitHub Actions CI/CD — plan-on-PR, manual-approval-apply-on-merge,
-  OIDC federated auth (`docs/CI-SETUP.md` has the one-time setup steps)
-- ⏳ Teardown script (`scripts/teardown.sh`) — written, not yet exercised
-  against a full live stack
+- GitHub Actions CI/CD — plan-on-PR, manual-approval-apply-on-merge,
+  OIDC federated authentication (`docs/CI-SETUP.md`)
+- Teardown automation (`scripts/teardown.sh`)
+- The failure drill itself — procedure and results template ready in
+  `docs/FAILOVER-DRILL.md`
 
-**What can't happen until then:**
-- The actual failure drill (`docs/FAILOVER-DRILL.md` has the full
-  procedure and results template, ready to execute)
-- First full end-to-end deploy verification
+See the GitHub Issues/Project board for granular status per component.
 
 See the GitHub Issues/Project board for granular status per component.
 
@@ -124,14 +124,15 @@ documented proof that failover works. Full procedure and results
 template: `docs/FAILOVER-DRILL.md`. Not yet executed — pending
 infrastructure redeployment.
 
-## Cost discipline
+## Cost governance
 
-This project runs on a personal Azure allocation with a hard spending
-cap, not an unlimited company account. That constraint shaped real
-decisions throughout — compute tier choices, session-scoped resource
-lifecycles, and ultimately, this project hitting its cap mid-build and
-pausing rather than continuing to accrue cost. That's treated here as a
-real operational finding worth documenting, not something to omit.
+This project runs against a capped personal Azure budget, not an
+unlimited account — a deliberate constraint, not an incidental one. That
+constraint shaped real architectural and operational decisions throughout:
+compute tier selection, session-scoped resource lifecycles, and the
+decision to pause deployment once the cap was reached rather than request
+an increase mid-build. Operating under a fixed budget is itself a
+condition worth designing for, not an edge case to work around.
 
 ## Related work
 
