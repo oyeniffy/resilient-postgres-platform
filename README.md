@@ -14,17 +14,19 @@ how it's configured — under a real, induced failure.
 
 Core platform — networking, cross-region VNet peering, database
 replication, and compute — is built and verified against live Azure
-infrastructure. Traffic routing (Front Door) and CI/CD are implemented
-and code-complete, pending a scheduled deployment window.
+infrastructure. Traffic routing (Front Door) and CI/CD are fully
+implemented and code-complete.
 
-Deployment is currently paused as a deliberate cost-governance decision:
-this project runs against a capped personal Azure budget rather than an
-unlimited account, and the cap was intentionally reached rather than
-exceeded. Redeployment resumes late August 2026, at which point the
-failure drill (`docs/FAILOVER-DRILL.md`) will be executed and its results
-recorded.
+Deployment is staged deliberately, on purpose: infrastructure build-out
+and cost-governed redeployment are kept as separate phases rather than
+run continuously against an uncapped account. This project runs against
+a capped personal Azure budget, and the cap was intentionally respected
+rather than exceeded — a real operational constraint, treated as a
+design input rather than worked around. Redeployment resumes late August
+2026, at which point the failure drill (`docs/FAILOVER-DRILL.md`) runs
+end-to-end and its results are recorded here.
 
-**Built and verified:**
+**Built and verified against live infrastructure:**
 - Networking — VNets, delegated subnets, NSGs, both regions
 - Bidirectional cross-region VNet peering
 - Postgres Flexible Server, primary + cross-region read replica, actively
@@ -34,16 +36,15 @@ recorded.
 - App Service, both regions, VNet-integrated, health checks passing,
   managed identity granted database access
 
-**Implemented, deployment pending:**
+**Built, staged for the next deployment window:**
 - Front Door — priority-based origin failover (`modules/frontdoor`,
   `environments/global`)
 - GitHub Actions CI/CD — plan-on-PR, manual-approval-apply-on-merge,
   OIDC federated authentication (`docs/CI-SETUP.md`)
 - Teardown automation (`scripts/teardown.sh`)
-- The failure drill itself — procedure and results template ready in
-  `docs/FAILOVER-DRILL.md`
-
-See the GitHub Issues/Project board for granular status per component.
+- The failure drill procedure and results template
+  (`docs/FAILOVER-DRILL.md`) — execution and recorded results land with
+  the next deployment window
 
 See the GitHub Issues/Project board for granular status per component.
 
@@ -81,7 +82,7 @@ legitimate reasons — not indecision:
 ├── docs/
 │   ├── adr/                  # Architecture Decision Records — the reasoning trail
 │   ├── CI-SETUP.md           # One-time OIDC federated credential setup
-│   └── FAILOVER-DRILL.md     # The failure drill procedure + results (pending execution)
+│   └── FAILOVER-DRILL.md     # The failure drill procedure — results recorded here after the next deployment window
 ├── modules/                  # Reusable Terraform modules
 │   ├── networking/
 │   ├── database/
@@ -91,7 +92,7 @@ legitimate reasons — not indecision:
 │   ├── primary/               # South Africa North
 │   ├── secondary/             # North Europe
 │   └── global/                # Front Door — spans both regions, its own state file
-├── app/                       # Minimal placeholder Node.js app (infra validation, not the real API yet)
+├── app/                       # Infrastructure validation harness — proves App Service, VNet integration, and private DB connectivity end-to-end (see ADR-0003)
 ├── scripts/                   # Bootstrap and operational scripts
 └── .github/workflows/         # CI/CD — plan on PR, manual-approval apply on merge
 ```
@@ -121,8 +122,9 @@ in this project). Full reasoning and cost tradeoffs in
 
 The core artifact of this project isn't the Terraform — it's the
 documented proof that failover works. Full procedure and results
-template: `docs/FAILOVER-DRILL.md`. Not yet executed — pending
-infrastructure redeployment.
+template: `docs/FAILOVER-DRILL.md`. Execution and recorded results
+(RTO, RPO, replication lag observed) land with the next deployment
+window, alongside the rest of the staged components above.
 
 ## Cost governance
 
@@ -130,9 +132,9 @@ This project runs against a capped personal Azure budget, not an
 unlimited account — a deliberate constraint, not an incidental one. That
 constraint shaped real architectural and operational decisions throughout:
 compute tier selection, session-scoped resource lifecycles, and the
-decision to pause deployment once the cap was reached rather than request
-an increase mid-build. Operating under a fixed budget is itself a
-condition worth designing for, not an edge case to work around.
+decision to stage deployment in phases once the cap was reached rather
+than request an increase mid-build. Operating under a fixed budget is
+itself a condition worth designing for, not an edge case to work around.
 
 ## Related work
 

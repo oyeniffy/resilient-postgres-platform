@@ -1,7 +1,7 @@
 {
   "name": "resilient-postgres-platform-app",
   "version": "0.1.0",
-  "description": "Minimal placeholder app for infrastructure validation. Real task/notes API logic comes after infra is proven end-to-end.",
+  "description": "Infrastructure validation harness — confirms App Service, VNet integration, and private database connectivity end-to-end. Application logic layers on top of this validated foundation (see ADR-0003).",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
